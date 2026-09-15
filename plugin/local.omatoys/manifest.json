@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "local.omatoys",
+  "name": "Omatoys",
+  "version": "1.0.0",
+  "author": "Local",
+  "description": "Small productivity tools for Omarchy",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omatoys",
+    "description": "Open small productivity tools from the Omarchy bar",
+    "category": "Utilities",
+    "allowMultiple": false
+  }
+}
