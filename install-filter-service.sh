@@ -11,15 +11,15 @@ filter="${1:-}"
 
 case "$filter" in
   key)
-    helper_source="$project_dir/key-filter/omatoys-key-filter.py"
-    service_source="$project_dir/key-filter/omatoys-key-filter.service"
+    helper_source="$project_dir/tools/key-filter/omatoys-key-filter.py"
+    service_source="$project_dir/tools/key-filter/omatoys-key-filter.service"
     helper_target="/usr/local/libexec/omatoys-key-filter"
     service_target="/etc/systemd/system/omatoys-key-filter.service"
     service_name="omatoys-key-filter.service"
     ;;
   click)
-    helper_source="$project_dir/click-filter/omatoys-click-filter.py"
-    service_source="$project_dir/click-filter/omatoys-click-filter.service"
+    helper_source="$project_dir/tools/click-filter/omatoys-click-filter.py"
+    service_source="$project_dir/tools/click-filter/omatoys-click-filter.service"
     helper_target="/usr/local/libexec/omatoys-click-filter"
     service_target="/etc/systemd/system/omatoys-click-filter.service"
     service_name="omatoys-click-filter.service"

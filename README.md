@@ -76,12 +76,13 @@ pkexec rm -f \
   /usr/local/libexec/omatoys-key-filter \
   /usr/local/libexec/omatoys-click-filter
 pkexec systemctl daemon-reload
-rm ~/.config/omarchy/plugins/io.github.eithe.omatoys
+rm -rf ~/.config/omarchy/plugins/io.github.eithe.omatoys
 ```
 
 ## Development
 
-The plugin source lives in the repository root. Install it into the
+The plugin entry point lives in the repository root, and individual tools
+live under `tools/`. Install it into the
 current user's Omarchy configuration with:
 
 ```bash

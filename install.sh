@@ -35,6 +35,7 @@ fi
 
 mkdir "$plugin_target"
 cp -a "$project_dir/." "$plugin_target/"
+rm -rf "$plugin_target/.git"
 printf 'Installed Omatoys plugin: %s\n' "$plugin_target"
 
 if command -v omarchy-shell >/dev/null 2>&1; then
