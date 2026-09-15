@@ -14,8 +14,11 @@ BarWidget {
   property bool menuOpen: false
   property bool keyFilterEnabled: false
   property bool clickFilterEnabled: false
+  property bool focusMouseDisabled: false
+  property bool focusMouseBusy: false
   property int escapeCount: 0
   readonly property string filterInstaller: Qt.resolvedUrl("install-filter-service.sh").toString().replace("file://", "")
+  readonly property string focusMouseToggle: Qt.resolvedUrl("tools/focus-follows-mouse/toggle.sh").toString().replace("file://", "")
   readonly property bool opened: menuOpen
   readonly property bool popoutSwitchClosing: false
 
@@ -60,11 +63,20 @@ BarWidget {
     clickFilterAction.running = true
   }
 
+  function toggleFocusMouse() {
+    if (focusMouseBusy) return
+    focusMouseBusy = true
+    focusMouseAction.command = ["bash", root.focusMouseToggle, root.focusMouseDisabled ? "off" : "on"]
+    focusMouseAction.running = true
+  }
+
   function refreshFilterStates() {
     keyFilterState.command = ["systemctl", "is-enabled", "omatoys-key-filter.service"]
     keyFilterState.running = true
     clickFilterState.command = ["systemctl", "is-enabled", "omatoys-click-filter.service"]
     clickFilterState.running = true
+    focusMouseState.command = ["bash", root.focusMouseToggle, "status"]
+    focusMouseState.running = true
   }
 
   implicitWidth: button.implicitWidth
@@ -173,6 +185,95 @@ BarWidget {
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
           onClicked: root.startCleaning()
+        }
+      }
+
+      BorderSurface {
+        width: parent.width
+        height: Style.space(56)
+        radius: Style.cornerRadius
+        color: focusToggle.containsMouse
+          ? Style.hoverFillFor(Color.popups.text, Color.accent)
+          : Style.normalFillFor(Color.popups.text, Color.accent)
+        borderSpec: focusToggle.containsMouse
+          ? Border.controlSpec("hover-cursor", Color.popups.text, Color.accent)
+          : Border.controlSpec("normal", Color.popups.text, Color.accent)
+
+        Row {
+          anchors.fill: parent
+          anchors.leftMargin: Style.space(12)
+          anchors.rightMargin: Style.space(12)
+          spacing: Style.space(12)
+
+          Text {
+            width: Style.space(24)
+            text: "󰍹"
+            color: Color.accent
+            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+            font.pixelSize: Style.font.icon
+            anchors.verticalCenter: parent.verticalCenter
+            horizontalAlignment: Text.AlignHCenter
+          }
+
+          Column {
+            width: parent.width - Style.space(24) - Style.space(42) - Style.space(24)
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(2)
+
+            Text {
+              text: "Focus follows mouse"
+              width: parent.width
+              elide: Text.ElideRight
+              color: Color.popups.text
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.body
+            }
+
+            Text {
+              text: root.focusMouseDisabled ? "Off - windows stay focused" : "On - pointer focuses windows"
+              width: parent.width
+              elide: Text.ElideRight
+              color: Qt.lighter(Color.muted, 1.25)
+              font.family: root.bar ? root.bar.fontFamily : Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          Item {
+            width: Style.space(42)
+            height: Style.space(24)
+            anchors.verticalCenter: parent.verticalCenter
+
+            BorderSurface {
+              anchors.fill: parent
+              radius: height / 2
+              color: root.focusMouseDisabled
+                ? Style.selectedFillFor(Color.popups.text, Color.accent)
+                : Style.normalFillFor(Color.popups.text, Color.accent)
+              borderSpec: Border.controlSpec(
+                root.focusMouseDisabled ? "selected" : "normal",
+                Color.popups.text,
+                Color.accent)
+
+              Rectangle {
+                width: Style.space(16)
+                height: width
+                radius: width / 2
+                anchors.verticalCenter: parent.verticalCenter
+                x: root.focusMouseDisabled ? parent.width - width - Style.space(4) : Style.space(4)
+                color: root.focusMouseDisabled ? Color.accent : Color.muted
+                Behavior on x { NumberAnimation { duration: 120 } }
+              }
+            }
+          }
+        }
+
+        MouseArea {
+          id: focusToggle
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.toggleFocusMouse()
         }
       }
 
@@ -371,6 +472,14 @@ BarWidget {
   }
 
   Process {
+    id: focusMouseAction
+    onExited: {
+      root.focusMouseBusy = false
+      if (exitCode === 0) root.refreshFilterStates()
+    }
+  }
+
+  Process {
     id: keyFilterState
     stdout: StdioCollector {
       onStreamFinished: root.keyFilterEnabled = text.trim() === "enabled"
@@ -381,6 +490,13 @@ BarWidget {
     id: clickFilterState
     stdout: StdioCollector {
       onStreamFinished: root.clickFilterEnabled = text.trim() === "enabled"
+    }
+  }
+
+  Process {
+    id: focusMouseState
+    stdout: StdioCollector {
+      onStreamFinished: root.focusMouseDisabled = text.trim() === "disabled"
     }
   }
 
