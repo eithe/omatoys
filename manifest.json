@@ -5,16 +5,16 @@
   "version": "1.0.0",
   "author": "Eithe",
   "license": "MIT",
-  "description": "Small productivity tools for Omarchy",
+  "description": "Small tools for everyday work in Omarchy",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Omatoys",
-    "description": "Open small productivity tools from the Omarchy bar",
+    "description": "Open Omatoys tools from the Omarchy bar",
     "category": "Utilities",
     "allowMultiple": false,
-    "defaultSection": "left"
+    "defaultSection": "center"
   }
 }

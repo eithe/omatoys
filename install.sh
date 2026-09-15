@@ -14,8 +14,23 @@ if [[ -L "$plugin_target" ]]; then
   fi
   rm "$plugin_target"
 elif [[ -e "$plugin_target" ]]; then
-  printf 'Refusing to replace existing plugin directory: %s\n' "$plugin_target" >&2
-  exit 1
+  if [[ -d "$plugin_target" ]] && python3 - "$plugin_target/manifest.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+try:
+    manifest = json.loads(Path(sys.argv[1]).read_text())
+except (OSError, ValueError):
+    raise SystemExit(1)
+raise SystemExit(0 if manifest.get("id") == "io.github.eithe.omatoys" else 1)
+PY
+  then
+    rm -rf "$plugin_target"
+  else
+    printf 'Refusing to replace existing unrelated plugin path: %s\n' "$plugin_target" >&2
+    exit 1
+  fi
 fi
 
 mkdir "$plugin_target"
