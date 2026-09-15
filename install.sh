@@ -5,9 +5,7 @@ project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 plugin_source="$project_dir/plugin/local.omatoys"
 plugin_target="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/local.omatoys"
 filter_source="$project_dir/key-filter/omatoys-key-filter.py"
-service_source="$project_dir/key-filter/omatoys-key-filter.service"
 click_filter_source="$project_dir/click-filter/omatoys-click-filter.py"
-click_service_source="$project_dir/click-filter/omatoys-click-filter.service"
 
 mkdir -p "$(dirname -- "$plugin_target")"
 
@@ -33,8 +31,3 @@ else
 fi
 
 "${elevate[@]}" pacman -S --needed --noconfirm python-evdev
-"${elevate[@]}" install -Dm755 "$filter_source" /usr/local/libexec/omatoys-key-filter
-"${elevate[@]}" install -Dm644 "$service_source" /etc/systemd/system/omatoys-key-filter.service
-"${elevate[@]}" install -Dm755 "$click_filter_source" /usr/local/libexec/omatoys-click-filter
-"${elevate[@]}" install -Dm644 "$click_service_source" /etc/systemd/system/omatoys-click-filter.service
-"${elevate[@]}" systemctl daemon-reload

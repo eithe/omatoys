@@ -14,6 +14,7 @@ BarWidget {
   property bool keyFilterEnabled: false
   property bool clickFilterEnabled: false
   property int escapeCount: 0
+  readonly property string filterInstaller: Qt.resolvedUrl("../../../install-filter-service.sh").toString().replace("file://", "")
 
   function startCleaning() {
     menuOpen = false
@@ -31,12 +32,16 @@ BarWidget {
   }
 
   function toggleKeyFilter() {
-    keyFilterAction.command = ["pkexec", "systemctl", keyFilterEnabled ? "disable" : "enable", "--now", "omatoys-key-filter.service"]
+    keyFilterAction.command = keyFilterEnabled
+      ? ["pkexec", "systemctl", "disable", "--now", "omatoys-key-filter.service"]
+      : ["pkexec", root.filterInstaller, "key"]
     keyFilterAction.running = true
   }
 
   function toggleClickFilter() {
-    clickFilterAction.command = ["pkexec", "systemctl", clickFilterEnabled ? "disable" : "enable", "--now", "omatoys-click-filter.service"]
+    clickFilterAction.command = clickFilterEnabled
+      ? ["pkexec", "systemctl", "disable", "--now", "omatoys-click-filter.service"]
+      : ["pkexec", root.filterInstaller, "click"]
     clickFilterAction.running = true
   }
 

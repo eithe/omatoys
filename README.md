@@ -33,21 +33,38 @@ The installer:
 - Installs the Omatoys shell plugin as a symlink under
   `~/.config/omarchy/plugins/local.omatoys/`.
 - Installs `python-evdev` with the Arch package manager.
-- Installs the privileged Key Filter and Click Filter systemd services.
 - Reloads the Omarchy shell.
 
-The installer may show a graphical authentication prompt through `pkexec`
-when installing the privileged input helpers. The helpers are disabled by
-default. Enable a filter from the Omatoys menu to start it immediately and
-persist it across reboots; disabling it stops the service and removes its
-boot-time enablement.
+The privileged input helpers are not installed during normal setup. The first
+time a user enables Key Filter or Click Filter from the Omatoys menu, that
+filter's helper and systemd service are installed through a graphical
+`pkexec` authentication prompt, started immediately, and enabled for future
+boots. Disabling a filter stops the service and removes its boot-time
+enablement, but leaves its installed files available for the next enable.
 
-To remove the project-managed installation, disable the services and remove
-the plugin symlink:
+To remove the project-managed installation, run:
+
+```bash
+./uninstall.sh
+```
+
+The uninstall script removes the Omatoys plugin symlink, removes its bar
+entry from `~/.config/omarchy/shell.json`, disables and stops both filter
+services, removes their systemd units and helper binaries, reloads systemd,
+and reloads the Omarchy shell. It intentionally leaves the shared
+`python-evdev` package installed because other applications may use it.
+
+The equivalent manual cleanup is:
 
 ```bash
 pkexec systemctl disable --now omatoys-key-filter.service
 pkexec systemctl disable --now omatoys-click-filter.service
+pkexec rm -f \
+  /etc/systemd/system/omatoys-key-filter.service \
+  /etc/systemd/system/omatoys-click-filter.service \
+  /usr/local/libexec/omatoys-key-filter \
+  /usr/local/libexec/omatoys-click-filter
+pkexec systemctl daemon-reload
 rm ~/.config/omarchy/plugins/local.omatoys
 ```
 
