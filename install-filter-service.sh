@@ -30,6 +30,7 @@ case "$filter" in
     ;;
 esac
 
+pacman -S --needed --noconfirm python-evdev
 install -Dm755 "$helper_source" "$helper_target"
 install -Dm644 "$service_source" "$service_target"
 systemctl daemon-reload

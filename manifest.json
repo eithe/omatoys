@@ -1,9 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "local.omatoys",
+  "id": "io.github.eithe.omatoys",
   "name": "Omatoys",
   "version": "1.0.0",
-  "author": "Local",
+  "author": "Eithe",
+  "license": "MIT",
   "description": "Small productivity tools for Omarchy",
   "kinds": ["bar-widget"],
   "entryPoints": {
@@ -13,6 +14,7 @@
     "displayName": "Omatoys",
     "description": "Open small productivity tools from the Omarchy bar",
     "category": "Utilities",
-    "allowMultiple": false
+    "allowMultiple": false,
+    "defaultSection": "left"
   }
 }

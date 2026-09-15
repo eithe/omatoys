@@ -20,7 +20,18 @@ disabling it stops the service and removes its boot-time enablement.
 
 ## Installation
 
-Clone the project and run the installer:
+Install the published plugin through Omarchy:
+
+```bash
+omarchy plugin add https://github.com/eithe/omatoys.git --enable
+```
+
+The plugin is identified as `io.github.eithe.omatoys` and appears in the
+configured bar layout. Key Filter and Click Filter install `python-evdev`,
+their helper, and their systemd service only when first enabled.
+
+For development from a local checkout, clone the project and run the
+installer:
 
 ```bash
 git clone https://github.com/eithe/omatoys.git omatoys
@@ -28,10 +39,10 @@ cd omatoys
 ./install.sh
 ```
 
-The installer:
+The development installer:
 
-- Installs the Omatoys shell plugin as a symlink under
-  `~/.config/omarchy/plugins/local.omatoys/`.
+- Copies the Omatoys shell plugin under
+  `~/.config/omarchy/plugins/io.github.eithe.omatoys/`.
 - Installs `python-evdev` with the Arch package manager.
 - Reloads the Omarchy shell.
 
@@ -48,7 +59,7 @@ To remove the project-managed installation, run:
 ./uninstall.sh
 ```
 
-The uninstall script removes the Omatoys plugin symlink, removes its bar
+The uninstall script removes the Omatoys plugin directory, removes its bar
 entry from `~/.config/omarchy/shell.json`, disables and stops both filter
 services, removes their systemd units and helper binaries, reloads systemd,
 and reloads the Omarchy shell. It intentionally leaves the shared
@@ -65,20 +76,21 @@ pkexec rm -f \
   /usr/local/libexec/omatoys-key-filter \
   /usr/local/libexec/omatoys-click-filter
 pkexec systemctl daemon-reload
-rm ~/.config/omarchy/plugins/local.omatoys
+rm ~/.config/omarchy/plugins/io.github.eithe.omatoys
 ```
 
 ## Development
 
-The plugin source lives in `plugin/local.omatoys/`. Install it into the
+The plugin source lives in the repository root. Install it into the
 current user's Omarchy configuration with:
 
 ```bash
 ./install.sh
 ```
 
-The installer creates a symlink, so edits in this project are picked up by
-the running Omarchy shell after a plugin rescan or shell restart.
+The installer copies the plugin into the user's Omarchy plugin directory.
+Rerun the installer after source changes, then use a plugin rescan or shell
+restart.
 
 ## Cleaning Mode
 

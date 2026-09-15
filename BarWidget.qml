@@ -7,14 +7,16 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "local.omatoys"
+  moduleName: "io.github.eithe.omatoys"
 
   property bool cleaningMode: false
   property bool menuOpen: false
   property bool keyFilterEnabled: false
   property bool clickFilterEnabled: false
   property int escapeCount: 0
-  readonly property string filterInstaller: Qt.resolvedUrl("../../../install-filter-service.sh").toString().replace("file://", "")
+  readonly property string filterInstaller: Qt.resolvedUrl("install-filter-service.sh").toString().replace("file://", "")
+  readonly property bool opened: menuOpen
+  readonly property bool popoutSwitchClosing: false
 
   function startCleaning() {
     menuOpen = false
@@ -29,6 +31,18 @@ BarWidget {
 
   function close() {
     menuOpen = false
+  }
+
+  function open() {
+    menuOpen = true
+  }
+
+  function toggle() {
+    menuOpen = !menuOpen
+  }
+
+  function closeForPopoutSwitch() {
+    close()
   }
 
   function toggleKeyFilter() {
@@ -63,8 +77,18 @@ BarWidget {
     tooltipText: "Omatoys"
     active: root.cleaningMode
     onPressed: function(buttonCode) {
-      if (buttonCode === Qt.LeftButton) root.menuOpen = !root.menuOpen
+      if (buttonCode === Qt.LeftButton) root.toggle()
     }
+  }
+
+  IpcHandler {
+    target: root.moduleName
+
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function show(): void { root.open() }
+    function hide(): void { root.close() }
+    function toggle(): void { root.toggle() }
   }
 
   PopupCard {

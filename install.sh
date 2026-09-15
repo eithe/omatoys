@@ -2,20 +2,25 @@
 set -euo pipefail
 
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-plugin_source="$project_dir/plugin/local.omatoys"
-plugin_target="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/local.omatoys"
-filter_source="$project_dir/key-filter/omatoys-key-filter.py"
-click_filter_source="$project_dir/click-filter/omatoys-click-filter.py"
+plugin_target="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/io.github.eithe.omatoys"
 
 mkdir -p "$(dirname -- "$plugin_target")"
 
-if [[ -e "$plugin_target" && ! -L "$plugin_target" ]]; then
-  printf 'Refusing to replace existing non-symlink: %s\n' "$plugin_target" >&2
+if [[ -L "$plugin_target" ]]; then
+  link_target="$(readlink -f "$plugin_target")"
+  if [[ "$link_target" != "$(readlink -f "$project_dir")" ]]; then
+    printf 'Refusing to replace plugin link pointing outside this project: %s\n' "$link_target" >&2
+    exit 1
+  fi
+  rm "$plugin_target"
+elif [[ -e "$plugin_target" ]]; then
+  printf 'Refusing to replace existing plugin directory: %s\n' "$plugin_target" >&2
   exit 1
 fi
 
-ln -sfn "$plugin_source" "$plugin_target"
-printf 'Installed Omatoys plugin: %s -> %s\n' "$plugin_target" "$plugin_source"
+mkdir "$plugin_target"
+cp -a "$project_dir/." "$plugin_target/"
+printf 'Installed Omatoys plugin: %s\n' "$plugin_target"
 
 if command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins
