@@ -23,7 +23,7 @@ disabling it stops the service and removes its boot-time enablement.
 Clone the project and run the installer:
 
 ```bash
-git clone <repository-url> omatoys
+git clone https://github.com/eithe/omatoys.git omatoys
 cd omatoys
 ./install.sh
 ```
