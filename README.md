@@ -1,8 +1,22 @@
 # Omatoys
 
 Omatoys is a shareable collection of small productivity tools for Omarchy.
-The first tool is **Cleaning Mode**, available from an Omatoys icon in the
-Omarchy top bar.
+Tools are available from the Omatoys icon in the Omarchy top bar.
+
+## Available tools
+
+- **Cleaning Mode** — Captures keyboard and pointer input while you clean
+  your keyboard. Press Escape five times to exit.
+- **Key Filter** — Filters accidental duplicate keyboard presses caused by a
+  worn keyboard. It is off by default and currently uses a separate 10 ms
+  debounce window.
+- **Click Filter** — Filters rapid repeated left, right, and middle mouse
+  clicks. It is off by default and currently uses a separate 25 ms debounce
+  window.
+
+Key Filter and Click Filter can be enabled independently. Enabling a filter
+starts its systemd service immediately and enables it for future boots;
+disabling it stops the service and removes its boot-time enablement.
 
 ## Installation
 
@@ -48,14 +62,6 @@ current user's Omarchy configuration with:
 
 The installer creates a symlink, so edits in this project are picked up by
 the running Omarchy shell after a plugin rescan or shell restart.
-
-The installer also installs the optional privileged Key Filter service. It
-uses `python-evdev` and `/dev/uinput` to re-emit keyboard events while
-suppressing accidental same-key presses within 100 ms. The Omatoys menu
-switch starts and stops the service through the system authentication dialog.
-
-The installer also installs Click Filter, which independently filters rapid
-left, right, and middle mouse clicks.
 
 ## Cleaning Mode
 
