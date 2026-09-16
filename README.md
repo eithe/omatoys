@@ -136,7 +136,14 @@ the two drift apart.
 ### Checks
 
 CI runs shellcheck over the shell scripts, `ruff` over the Python, the unit
-tests, and a manifest consistency check. Locally:
+tests, and a manifest consistency check.
+
+The workflow is currently parked at `.github/ci-workflow.yml` rather than
+`.github/workflows/ci.yml`, because pushing a file under `.github/workflows/`
+requires a credential with the `workflow` scope. See the comment at the top of
+that file for the two ways to activate it.
+
+To run the same checks locally:
 
 ```bash
 shellcheck install.sh uninstall.sh tools/install-filter-service.sh \
