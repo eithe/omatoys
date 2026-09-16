@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shell:
+    name: Shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+      - name: Run shellcheck
+        run: shellcheck --severity=style install.sh uninstall.sh tools/install-filter-service.sh tools/focus-follows-mouse/toggle.sh tools/lib/omatoys-common.sh
+      - name: Check bash syntax
+        run: |
+          for script in install.sh uninstall.sh tools/install-filter-service.sh tools/focus-follows-mouse/toggle.sh tools/lib/omatoys-common.sh; do
+            bash -n "$script"
+          done
+
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-dev
+          python -m pip install --upgrade pip
+          # Pinned so a ruff release cannot fail an unrelated pull request.
+          python -m pip install 'ruff==0.16.7' evdev
+      - name: Lint
+        run: ruff check .
+      - name: Format check
+        run: ruff format --check .
+      - name: Test
+        run: python -m unittest discover -s tests -v
+
+  manifest:
+    name: Manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate manifest.json and referenced entry points
+        run: python3 .github/scripts/check-manifest.py
