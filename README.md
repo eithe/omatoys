@@ -13,8 +13,8 @@ Tools are available from the Omatoys icon in the Omarchy top bar.
 - **Click Filter** — Filters rapid repeated left, right, and middle mouse
   clicks. It is off by default and uses a 25 ms debounce window. Touchpads,
   touchscreens, and graphics tablets are deliberately left alone.
-- **Focus Follows Mouse** — Disables Hyprland's behavior of focusing a window
-  when the pointer moves over it. It is off by default.
+- **Focus Follows Mouse** — Controls Hyprland's behavior of focusing a window
+  when the pointer moves over it. It is on by default.
 
 Key Filter and Click Filter can be enabled independently. Enabling a filter
 starts its systemd service immediately and enables it for future boots;

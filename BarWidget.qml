@@ -21,7 +21,7 @@ BarWidget {
   property bool clickFilterEnabled: false
   property bool clickFilterHealthy: true
   property bool clickFilterBusy: false
-  property bool focusMouseDisabled: false
+  property bool focusMouseEnabled: true
   property bool focusMouseBusy: false
 
   // Last failure, shown at the bottom of the menu until it is superseded.
@@ -114,7 +114,7 @@ BarWidget {
     if (focusMouseBusy) return
     focusMouseBusy = true
     statusMessage = ""
-    focusMouseAction.command = ["bash", root.focusMouseToggle, root.focusMouseDisabled ? "off" : "on"]
+    focusMouseAction.command = ["bash", root.focusMouseToggle, root.focusMouseEnabled ? "off" : "on"]
     focusMouseAction.running = true
   }
 
@@ -319,11 +319,11 @@ BarWidget {
         icon: "󰍹"
         title: "Focus follows mouse"
         checkable: true
-        checked: root.focusMouseDisabled
+        checked: root.focusMouseEnabled
         busy: root.focusMouseBusy
-        subtitle: root.focusMouseDisabled
-          ? "Off - windows stay focused"
-          : "On - pointer focuses windows"
+        subtitle: root.focusMouseEnabled
+          ? "On - pointer focuses windows"
+          : "Off - windows stay focused"
         onActivated: root.toggleFocusMouse()
       }
 
@@ -422,7 +422,7 @@ BarWidget {
   Process {
     id: focusMouseState
     stdout: StdioCollector {
-      onStreamFinished: root.focusMouseDisabled = text.trim() === "disabled"
+      onStreamFinished: root.focusMouseEnabled = text.trim() === "enabled"
     }
   }
 

@@ -5,13 +5,18 @@ state_file="$HOME/.local/state/omarchy/toggles/hypr/omatoys-focus-follows-mouse.
 
 case "${1:-}" in
   status)
-    if [[ -f "$state_file" ]]; then
-      printf 'disabled\n'
-    else
+    option="$(hyprctl getoption input:follow_mouse -j)"
+    if [[ "$option" =~ \"int\"[[:space:]]*:[[:space:]]*[1-9] ]]; then
       printf 'enabled\n'
+    else
+      printf 'disabled\n'
     fi
     ;;
   on)
+    rm -f "$state_file"
+    hyprctl reload >/dev/null
+    ;;
+  off)
     mkdir -p "$(dirname -- "$state_file")"
     printf '%s\n' \
       'hl.config({' \
@@ -19,10 +24,6 @@ case "${1:-}" in
       '    follow_mouse = 0,' \
       '  },' \
       '})' >"$state_file"
-    hyprctl reload >/dev/null
-    ;;
-  off)
-    rm -f "$state_file"
     hyprctl reload >/dev/null
     ;;
   *)
