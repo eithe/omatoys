@@ -96,7 +96,7 @@ BarWidget {
     statusMessage = ""
     keyFilterAction.command = keyFilterEnabled
       ? ["pkexec", "systemctl", "disable", "--now", "omatoys-key-filter.service"]
-      : ["pkexec", root.filterInstaller, "key"]
+      : ["pkexec", "bash", root.filterInstaller, "key"]
     keyFilterAction.running = true
   }
 
@@ -106,7 +106,7 @@ BarWidget {
     statusMessage = ""
     clickFilterAction.command = clickFilterEnabled
       ? ["pkexec", "systemctl", "disable", "--now", "omatoys-click-filter.service"]
-      : ["pkexec", root.filterInstaller, "click"]
+      : ["pkexec", "bash", root.filterInstaller, "click"]
     clickFilterAction.running = true
   }
 
