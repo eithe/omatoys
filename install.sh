@@ -49,5 +49,6 @@ if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin enable "$plugin_id"
 fi
 
-omatoys_select_elevate elevate
-"${elevate[@]}" pacman -S --needed --noconfirm python-evdev
+elevate="$(omatoys_elevation_tool)" ||
+  omatoys_die 'A privilege escalation tool (sudo or pkexec) is required for the input filters.'
+"$elevate" pacman -S --needed --noconfirm python-evdev

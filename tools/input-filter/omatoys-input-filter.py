@@ -10,6 +10,7 @@ The debounce window defaults to 10 ms for keys and 25 ms for clicks and can be
 overridden with the OMATOYS_FILTER_WINDOW_MS environment variable.
 """
 
+import contextlib
 import errno
 import os
 import select
@@ -185,14 +186,10 @@ class Filter:
         if entry is None:
             return
         device, output = entry
-        try:
+        with contextlib.suppress(KeyError, OSError):
             self.poller.unregister(device.fd)
-        except (KeyError, OSError):
-            pass
-        try:
+        with contextlib.suppress(OSError):
             device.ungrab()
-        except OSError:
-            pass
         try:
             output.close()
         finally:

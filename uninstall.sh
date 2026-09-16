@@ -11,7 +11,8 @@ config_home="$(omatoys_config_home)"
 plugin_target="$config_home/omarchy/plugins/$plugin_id"
 shell_config="$config_home/omarchy/shell.json"
 
-omatoys_select_elevate elevate
+elevate="$(omatoys_elevation_tool)" ||
+  omatoys_die 'A privilege escalation tool (sudo or pkexec) is required.'
 
 if [[ -L "$plugin_target" ]]; then
   link_target="$(readlink -f "$plugin_target")"
@@ -95,16 +96,16 @@ PY
 fi
 
 for service in omatoys-key-filter.service omatoys-click-filter.service; do
-  "${elevate[@]}" systemctl disable --now "$service" 2>/dev/null || true
+  "$elevate" systemctl disable --now "$service" 2>/dev/null || true
 done
 
-"${elevate[@]}" rm -f \
+"$elevate" rm -f \
   /etc/systemd/system/omatoys-key-filter.service \
   /etc/systemd/system/omatoys-click-filter.service \
   /usr/local/libexec/omatoys-input-filter \
   /usr/local/libexec/omatoys-key-filter \
   /usr/local/libexec/omatoys-click-filter
-"${elevate[@]}" systemctl daemon-reload
+"$elevate" systemctl daemon-reload
 
 if command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins

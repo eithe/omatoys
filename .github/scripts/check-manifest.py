@@ -28,7 +28,7 @@ try:
     manifest = json.loads(manifest_path.read_text())
 except (OSError, ValueError) as exc:
     print(f"manifest.json is not readable JSON: {exc}", file=sys.stderr)
-    raise SystemExit(1)
+    raise SystemExit(1) from exc
 
 plugin_id = manifest.get("id")
 check(isinstance(plugin_id, str) and plugin_id, "manifest.json has no string id")

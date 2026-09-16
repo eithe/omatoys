@@ -36,7 +36,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-dev
           python -m pip install --upgrade pip
-          python -m pip install ruff evdev
+          # Pinned so a ruff release cannot fail an unrelated pull request.
+          python -m pip install 'ruff==0.16.7' evdev
       - name: Lint
         run: ruff check .
       - name: Format check

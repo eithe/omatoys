@@ -37,15 +37,16 @@ omatoys_config_home() {
   printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}"
 }
 
-# Choose a privilege escalation tool, preferring sudo on a terminal and falling
-# back to pkexec for graphical invocations. Populates the named array.
-omatoys_select_elevate() {
-  local -n _elevate="$1"
+# Print the privilege escalation tool to use, preferring sudo on a terminal and
+# falling back to pkexec for graphical invocations. Returns 1 when neither is
+# available. Printing rather than assigning keeps this free of namerefs, which
+# need bash 4.3 and which shellcheck cannot follow.
+omatoys_elevation_tool() {
   if [[ -t 0 ]] && command -v sudo >/dev/null 2>&1; then
-    _elevate=(sudo)
+    printf 'sudo\n'
   elif command -v pkexec >/dev/null 2>&1; then
-    _elevate=(pkexec)
+    printf 'pkexec\n'
   else
-    omatoys_die 'A privilege escalation tool (sudo or pkexec) is required.'
+    return 1
   fi
 }
