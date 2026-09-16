@@ -1,20 +1,3 @@
-# NOT ACTIVE AT THIS PATH.
-#
-# GitHub refuses a push that creates or edits a file under .github/workflows/
-# unless the credential carries the `workflow` scope, so this file is parked
-# here instead. To activate it, either:
-#
-#   1. Add the `workflow` scope to the token at
-#      https://github.com/settings/tokens, then locally:
-#        git mv .github/ci-workflow.yml .github/workflows/ci.yml
-#        git commit -am "Activate CI workflow" && git push
-#
-#   2. Or, in the GitHub web editor (which does not need the scope), use
-#      "Add file > Create new file", name it .github/workflows/ci.yml, paste
-#      the contents below, and delete this file.
-#
-# Remove this comment block along with the move.
-
 name: CI
 
 on:
