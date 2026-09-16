@@ -311,7 +311,7 @@ BarWidget {
       ToolRow {
         icon: "󰃢"
         title: "Cleaning Mode"
-        subtitle: "Lock input while wiping your keyboard"
+        subtitle: "Lock input to wipe your keyboard"
         onActivated: root.startCleaning()
       }
 
