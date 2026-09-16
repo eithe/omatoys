@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "tools/cleaning-mode"
+import "tools/color-picker"
 
 BarWidget {
   id: root
@@ -23,6 +24,11 @@ BarWidget {
   property bool clickFilterBusy: false
   property bool focusMouseEnabled: true
   property bool focusMouseBusy: false
+  property bool colorPickerActive: false
+  property bool colorPickerVisible: false
+  property string pickedHex: ""
+  property string pickedRgb: ""
+  property string pickedHsl: ""
 
   // Last failure, shown at the bottom of the menu until it is superseded.
   property string statusMessage: ""
@@ -34,6 +40,7 @@ BarWidget {
   readonly property string stagedInstaller: "/usr/local/lib/omatoys/install-filter-service.sh"
   readonly property string pluginInstaller: root.scriptPath("tools/install-filter-service.sh")
   readonly property string focusMouseToggle: root.scriptPath("tools/focus-follows-mouse/toggle.sh")
+  readonly property string colorPickerScript: root.scriptPath("tools/color-picker/pick-color.sh")
   readonly property bool opened: menuOpen
   readonly property bool popoutSwitchClosing: false
 
@@ -54,6 +61,22 @@ BarWidget {
     menuOpen = false
     escapeCount = 0
     cleaningMode = true
+  }
+
+  function startColorPicker() {
+    menuOpen = false
+    colorPickerActive = true
+    colorPickerProcess.command = ["bash", root.colorPickerScript]
+    colorPickerProcess.running = true
+  }
+
+  function closeColorPicker() {
+    colorPickerVisible = false
+    colorPickerActive = false
+  }
+
+  function copyColor(value: string) {
+    Quickshell.execDetached(["bash", "-c", "printf %s " + Util.shellQuote(value) + " | wl-copy"])
   }
 
   function stopCleaning() {
@@ -316,6 +339,13 @@ BarWidget {
       }
 
       ToolRow {
+        icon: "󰏘"
+        title: "Color Picker"
+        subtitle: "Pick a color from the screen"
+        onActivated: root.startColorPicker()
+      }
+
+      ToolRow {
         icon: "󰍹"
         title: "Focus follows mouse"
         checkable: true
@@ -363,6 +393,29 @@ BarWidget {
         color: Color.accent
         font.family: root.bar ? root.bar.fontFamily : Style.font.family
         font.pixelSize: Style.font.caption
+      }
+    }
+  }
+
+  Process {
+    id: colorPickerProcess
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const output = text.trim()
+        if (!output) return
+        const result = JSON.parse(output)
+        root.pickedHex = result.hex
+        root.pickedRgb = result.rgb
+        root.pickedHsl = result.hsl
+        root.colorPickerActive = false
+        root.colorPickerVisible = true
+      }
+    }
+    stderr: StdioCollector { id: colorPickerProcessErr }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) {
+        root.colorPickerActive = false
+        root.reportFailure("Color picker", exitCode, colorPickerProcessErr.text)
       }
     }
   }
@@ -445,6 +498,18 @@ BarWidget {
     onEscapePressed: {
       root.escapeCount += 1
       if (root.escapeCount >= 5) root.stopCleaning()
+    }
+
+    ColorPicker {
+      id: colorPickerPanel
+      active: root.colorPickerVisible
+      hostScreen: button.QsWindow.window ? button.QsWindow.window.screen : null
+      fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+      hex: root.pickedHex
+      rgb: root.pickedRgb
+      hsl: root.pickedHsl
+      onCopyRequested: function(value) { root.copyColor(value) }
+      onDismissed: root.closeColorPicker()
     }
   }
 }

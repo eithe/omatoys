@@ -5,6 +5,8 @@ Tools are available from the Omatoys icon in the Omarchy top bar.
 
 ## Available tools
 
+- **Color Picker** — A simple screen color picker: click any point to view
+  its HEX, RGB, and HSL values, then copy any value with one click.
 - **Cleaning Mode** — Captures keyboard and pointer input while you clean
   your keyboard. Every connected monitor is covered. Press Escape five times
   to exit.
@@ -15,6 +17,17 @@ Tools are available from the Omatoys icon in the Omarchy top bar.
   touchscreens, and graphics tablets are deliberately left alone.
 - **Focus Follows Mouse** — Controls Hyprland's behavior of focusing a window
   when the pointer moves over it. It is on by default.
+
+## Showcase
+
+Omatoys keeps small, focused tools one click away from the Omarchy top bar:
+
+![Omatoys tools menu](docs/menu.png)
+
+The Color Picker makes it easy to sample a color from anywhere on screen.
+Click a point, then copy the HEX, RGB, or HSL value you need.
+
+![Color Picker showing copyable color values](docs/color-picker.png)
 
 Key Filter and Click Filter can be enabled independently. Enabling a filter
 starts its systemd service immediately and enables it for future boots;
