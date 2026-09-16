@@ -105,6 +105,9 @@ done
   /usr/local/libexec/omatoys-input-filter \
   /usr/local/libexec/omatoys-key-filter \
   /usr/local/libexec/omatoys-click-filter
+# The root-owned staging directory holds the helper, the units, and a copy of
+# the privileged installer.
+"$elevate" rm -rf /usr/local/lib/omatoys
 "$elevate" systemctl daemon-reload
 
 if command -v omarchy-shell >/dev/null 2>&1; then

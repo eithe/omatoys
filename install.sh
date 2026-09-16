@@ -52,3 +52,8 @@ fi
 elevate="$(omatoys_elevation_tool)" ||
   omatoys_die 'A privilege escalation tool (sudo or pkexec) is required for the input filters.'
 "$elevate" pacman -S --needed --noconfirm python-evdev
+
+# Stage the privileged helper into its root-owned directory now. This is the
+# supported way to update it after source changes, and it means the first
+# filter enable never has to run anything out of the plugin directory as root.
+"$elevate" "$plugin_target/tools/install-filter-service.sh" --stage

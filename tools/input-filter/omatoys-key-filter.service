@@ -4,13 +4,50 @@ Documentation=https://github.com/eithe/omatoys
 
 [Service]
 Type=simple
-# Override the 10 ms default debounce window with:
-#   systemctl edit omatoys-key-filter.service
-#   [Service]
-#   Environment=OMATOYS_FILTER_WINDOW_MS=20
-ExecStart=/usr/local/libexec/omatoys-input-filter key
+# Runs from /usr/local/lib/omatoys, which is root-owned. Nothing under the
+# user's home is executed here.
+ExecStart=/usr/local/lib/omatoys/omatoys-input-filter key
 Restart=on-failure
 RestartSec=1
+
+# Override the 10 ms default debounce window with:
+#   sudo systemctl edit omatoys-key-filter.service
+#   [Service]
+#   Environment=OMATOYS_FILTER_WINDOW_MS=20
+
+# Sandboxing. The filter reads /dev/input/event* and writes /dev/uinput and
+# needs nothing else, so everything else is taken away. This bounds the damage
+# if the helper is ever replaced: no network, no writable system, no home.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+IPAddressDeny=any
+RestrictAddressFamilies=AF_UNIX
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
+# Kept so the helper can still open input nodes whose ownership varies between
+# udev configurations; every other capability is dropped.
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
+# PrivateDevices is deliberately NOT set: it would hide the input devices.
+DevicePolicy=closed
+DeviceAllow=char-input rw
+DeviceAllow=/dev/uinput rw
 
 [Install]
 WantedBy=multi-user.target

@@ -12,7 +12,28 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-HELPER_TARGET = "/usr/local/libexec/omatoys-input-filter"
+HELPER_TARGET = "/usr/local/lib/omatoys/omatoys-input-filter"
+
+# The helper runs as root, so the units confine it. These are asserted here
+# because a dropped line would weaken the sandbox silently and no test would
+# notice.
+REQUIRED_HARDENING = (
+    "NoNewPrivileges=yes",
+    "ProtectSystem=strict",
+    "ProtectHome=yes",
+    "PrivateNetwork=yes",
+    "IPAddressDeny=any",
+    "ProtectKernelModules=yes",
+    "ProtectKernelTunables=yes",
+    "RestrictNamespaces=yes",
+    "RestrictSUIDSGID=yes",
+    "LockPersonality=yes",
+    "SystemCallFilter=@system-service",
+    "CapabilityBoundingSet=CAP_DAC_OVERRIDE",
+    "DevicePolicy=closed",
+    "DeviceAllow=char-input rw",
+    "DeviceAllow=/dev/uinput rw",
+)
 
 errors = []
 
@@ -76,6 +97,21 @@ for unit in units:
         # unit wanted by it is never pulled in at boot.
         f"{unit.name} must be WantedBy=multi-user.target as a system unit",
     )
+    for directive in REQUIRED_HARDENING:
+        check(directive in text, f"{unit.name} is missing {directive!r}")
+    check(
+        # PrivateDevices gives the unit a minimal private /dev, which would
+        # hide the very input devices the filter exists to read.
+        "PrivateDevices=" not in text,
+        f"{unit.name} must not set PrivateDevices; it would hide the input devices",
+    )
+
+# The widget must never elevate the plugin-directory copy once a root-owned
+# one exists, so the staged path has to be an absolute literal it prefers.
+check(
+    f'"{HELPER_TARGET.rsplit("/", 1)[0]}/install-filter-service.sh"' in bar_widget,
+    "BarWidget.qml does not reference the staged, root-owned installer path",
+)
 
 if errors:
     for error in errors:

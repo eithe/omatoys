@@ -27,10 +27,22 @@ BarWidget {
   // Last failure, shown at the bottom of the menu until it is superseded.
   property string statusMessage: ""
 
-  readonly property string filterInstaller: root.scriptPath("tools/install-filter-service.sh")
+  // True once the privileged helper has been copied into a root-owned
+  // directory, which happens the first time a filter is enabled.
+  property bool filtersStaged: false
+
+  readonly property string stagedInstaller: "/usr/local/lib/omatoys/install-filter-service.sh"
+  readonly property string pluginInstaller: root.scriptPath("tools/install-filter-service.sh")
   readonly property string focusMouseToggle: root.scriptPath("tools/focus-follows-mouse/toggle.sh")
   readonly property bool opened: menuOpen
   readonly property bool popoutSwitchClosing: false
+
+  // Prefer the root-owned copy. The plugin directory is writable by the user,
+  // so running it as root is only acceptable for the one-time bootstrap; once
+  // a staged copy exists it is the only thing this widget will elevate.
+  readonly property string filterInstaller: root.filtersStaged
+    ? root.stagedInstaller
+    : root.pluginInstaller
 
   // Qt.resolvedUrl percent-encodes the path, so a plugin installed under a
   // directory with spaces would otherwise produce an unusable command.
@@ -127,6 +139,8 @@ BarWidget {
     clickFilterState.running = true
     focusMouseState.command = ["bash", root.focusMouseToggle, "status"]
     focusMouseState.running = true
+    stagedState.command = ["test", "-x", root.stagedInstaller]
+    stagedState.running = true
   }
 
   // A single row in the menu: icon, title, subtitle, and an optional switch.
@@ -409,6 +423,13 @@ BarWidget {
     id: focusMouseState
     stdout: StdioCollector {
       onStreamFinished: root.focusMouseDisabled = text.trim() === "disabled"
+    }
+  }
+
+  Process {
+    id: stagedState
+    onExited: function(exitCode) {
+      root.filtersStaged = exitCode === 0
     }
   }
 

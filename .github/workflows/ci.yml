@@ -16,12 +16,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
       - name: Run shellcheck
-        run: shellcheck --severity=style install.sh uninstall.sh tools/install-filter-service.sh tools/focus-follows-mouse/toggle.sh tools/lib/omatoys-common.sh
+        run: shellcheck --severity=style install.sh uninstall.sh tools/install-filter-service.sh tools/focus-follows-mouse/toggle.sh tools/lib/omatoys-common.sh tests/test-install-filter-service.sh
       - name: Check bash syntax
         run: |
-          for script in install.sh uninstall.sh tools/install-filter-service.sh tools/focus-follows-mouse/toggle.sh tools/lib/omatoys-common.sh; do
+          for script in install.sh uninstall.sh tools/install-filter-service.sh tools/focus-follows-mouse/toggle.sh tools/lib/omatoys-common.sh tests/test-install-filter-service.sh; do
             bash -n "$script"
           done
+
+      - name: Test the privileged installer
+        run: bash tests/test-install-filter-service.sh
 
   python:
     name: Python
