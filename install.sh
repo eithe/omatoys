@@ -2,54 +2,52 @@
 set -euo pipefail
 
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-plugin_target="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/io.github.eithe.omatoys"
+# shellcheck source=tools/lib/omatoys-common.sh
+source "$project_dir/tools/lib/omatoys-common.sh"
+
+plugin_id="$(omatoys_manifest_id "$project_dir/manifest.json")" ||
+  omatoys_die "Cannot read a plugin id from $project_dir/manifest.json"
+plugin_target="$(omatoys_config_home)/omarchy/plugins/$plugin_id"
 
 mkdir -p "$(dirname -- "$plugin_target")"
 
 if [[ -L "$plugin_target" ]]; then
   link_target="$(readlink -f "$plugin_target")"
   if [[ "$link_target" != "$(readlink -f "$project_dir")" ]]; then
-    printf 'Refusing to replace plugin link pointing outside this project: %s\n' "$link_target" >&2
-    exit 1
+    omatoys_die "Refusing to replace plugin link pointing outside this project: $link_target"
   fi
   rm "$plugin_target"
 elif [[ -e "$plugin_target" ]]; then
-  if [[ -d "$plugin_target" ]] && python3 - "$plugin_target/manifest.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-try:
-    manifest = json.loads(Path(sys.argv[1]).read_text())
-except (OSError, ValueError):
-    raise SystemExit(1)
-raise SystemExit(0 if manifest.get("id") == "io.github.eithe.omatoys" else 1)
-PY
-  then
-    rm -rf "$plugin_target"
-  else
-    printf 'Refusing to replace existing unrelated plugin path: %s\n' "$plugin_target" >&2
-    exit 1
+  installed_id=""
+  if [[ -d "$plugin_target" ]]; then
+    installed_id="$(omatoys_manifest_id "$plugin_target/manifest.json" || true)"
   fi
+  if [[ "$installed_id" != "$plugin_id" ]]; then
+    omatoys_die "Refusing to replace existing unrelated plugin path: $plugin_target"
+  fi
+  rm -rf "$plugin_target"
 fi
 
 mkdir "$plugin_target"
-cp -a "$project_dir/." "$plugin_target/"
-rm -rf "$plugin_target/.git"
+# Ship only what the running plugin needs; skip VCS metadata and dev scripts.
+tar -c -C "$project_dir" \
+  --exclude=.git \
+  --exclude=.github \
+  --exclude=.claude \
+  --exclude=install.sh \
+  --exclude=uninstall.sh \
+  --exclude=tests \
+  --exclude=pyproject.toml \
+  --exclude=__pycache__ \
+  . | tar -x -C "$plugin_target"
 printf 'Installed Omatoys plugin: %s\n' "$plugin_target"
 
 if command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins
-  omarchy plugin enable io.github.eithe.omatoys
+fi
+if command -v omarchy >/dev/null 2>&1; then
+  omarchy plugin enable "$plugin_id"
 fi
 
-if [[ -t 0 ]] && command -v sudo >/dev/null 2>&1; then
-  elevate=(sudo)
-elif command -v pkexec >/dev/null 2>&1; then
-  elevate=(pkexec)
-else
-  printf 'A privilege escalation tool (sudo or pkexec) is required for Key Filter.\\n' >&2
-  exit 1
-fi
-
+omatoys_select_elevate elevate
 "${elevate[@]}" pacman -S --needed --noconfirm python-evdev

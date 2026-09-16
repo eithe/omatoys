@@ -12,15 +12,31 @@ BarWidget {
 
   property bool cleaningMode: false
   property bool menuOpen: false
+  property int escapeCount: 0
+
+  // Filter state, as reported by systemd.
   property bool keyFilterEnabled: false
+  property bool keyFilterHealthy: true
+  property bool keyFilterBusy: false
   property bool clickFilterEnabled: false
+  property bool clickFilterHealthy: true
+  property bool clickFilterBusy: false
   property bool focusMouseDisabled: false
   property bool focusMouseBusy: false
-  property int escapeCount: 0
-  readonly property string filterInstaller: Qt.resolvedUrl("install-filter-service.sh").toString().replace("file://", "")
-  readonly property string focusMouseToggle: Qt.resolvedUrl("tools/focus-follows-mouse/toggle.sh").toString().replace("file://", "")
+
+  // Last failure, shown at the bottom of the menu until it is superseded.
+  property string statusMessage: ""
+
+  readonly property string filterInstaller: root.scriptPath("tools/install-filter-service.sh")
+  readonly property string focusMouseToggle: root.scriptPath("tools/focus-follows-mouse/toggle.sh")
   readonly property bool opened: menuOpen
   readonly property bool popoutSwitchClosing: false
+
+  // Qt.resolvedUrl percent-encodes the path, so a plugin installed under a
+  // directory with spaces would otherwise produce an unusable command.
+  function scriptPath(relative: string): string {
+    return decodeURIComponent(Qt.resolvedUrl(relative).toString().replace(/^file:\/\//, ""))
+  }
 
   function startCleaning() {
     menuOpen = false
@@ -49,7 +65,23 @@ BarWidget {
     close()
   }
 
+  function reportFailure(label: string, exitCode: int, details: string) {
+    // pkexec exits 126 when the authentication dialog is dismissed, which is a
+    // deliberate user action rather than something worth reporting as an error.
+    if (exitCode === 126) {
+      root.statusMessage = ""
+      return
+    }
+    const trimmed = details ? details.trim().split("\n").pop() : ""
+    root.statusMessage = trimmed
+      ? `${label} failed: ${trimmed}`
+      : `${label} failed (exit ${exitCode})`
+  }
+
   function toggleKeyFilter() {
+    if (keyFilterBusy) return
+    keyFilterBusy = true
+    statusMessage = ""
     keyFilterAction.command = keyFilterEnabled
       ? ["pkexec", "systemctl", "disable", "--now", "omatoys-key-filter.service"]
       : ["pkexec", root.filterInstaller, "key"]
@@ -57,6 +89,9 @@ BarWidget {
   }
 
   function toggleClickFilter() {
+    if (clickFilterBusy) return
+    clickFilterBusy = true
+    statusMessage = ""
     clickFilterAction.command = clickFilterEnabled
       ? ["pkexec", "systemctl", "disable", "--now", "omatoys-click-filter.service"]
       : ["pkexec", root.filterInstaller, "click"]
@@ -66,17 +101,143 @@ BarWidget {
   function toggleFocusMouse() {
     if (focusMouseBusy) return
     focusMouseBusy = true
+    statusMessage = ""
     focusMouseAction.command = ["bash", root.focusMouseToggle, root.focusMouseDisabled ? "off" : "on"]
     focusMouseAction.running = true
   }
 
+  // Parses `systemctl show` key=value output into a plain object.
+  function parseUnitStatus(text: string): var {
+    const status = {}
+    for (const line of text.split("\n")) {
+      const split = line.indexOf("=")
+      if (split > 0) status[line.slice(0, split)] = line.slice(split + 1).trim()
+    }
+    return status
+  }
+
+  function unitStatusCommand(unit: string): var {
+    return ["systemctl", "show", unit, "--property=ActiveState", "--property=UnitFileState"]
+  }
+
   function refreshFilterStates() {
-    keyFilterState.command = ["systemctl", "is-enabled", "omatoys-key-filter.service"]
+    keyFilterState.command = root.unitStatusCommand("omatoys-key-filter.service")
     keyFilterState.running = true
-    clickFilterState.command = ["systemctl", "is-enabled", "omatoys-click-filter.service"]
+    clickFilterState.command = root.unitStatusCommand("omatoys-click-filter.service")
     clickFilterState.running = true
     focusMouseState.command = ["bash", root.focusMouseToggle, "status"]
     focusMouseState.running = true
+  }
+
+  // A single row in the menu: icon, title, subtitle, and an optional switch.
+  // Rows without `checkable` act as plain buttons.
+  component ToolRow: BorderSurface {
+    id: rowRoot
+
+    property string icon: ""
+    property string title: ""
+    property string subtitle: ""
+    property bool checkable: false
+    property bool checked: false
+    property bool busy: false
+    signal activated()
+
+    readonly property int iconWidth: Style.space(24)
+    readonly property int switchWidth: Style.space(42)
+
+    width: parent ? parent.width : 0
+    height: Style.space(56)
+    radius: Style.cornerRadius
+    opacity: rowRoot.busy ? 0.6 : 1.0
+    color: rowMouse.containsMouse
+      ? Style.hoverFillFor(Color.popups.text, Color.accent)
+      : Style.normalFillFor(Color.popups.text, Color.accent)
+    borderSpec: rowMouse.containsMouse
+      ? Border.controlSpec("hover-cursor", Color.popups.text, Color.accent)
+      : Border.controlSpec("normal", Color.popups.text, Color.accent)
+
+    Behavior on opacity { NumberAnimation { duration: 120 } }
+
+    Row {
+      anchors.fill: parent
+      anchors.leftMargin: Style.space(12)
+      anchors.rightMargin: Style.space(12)
+      spacing: Style.space(12)
+
+      Text {
+        width: rowRoot.iconWidth
+        text: rowRoot.icon
+        color: Color.accent
+        font.family: root.bar ? root.bar.fontFamily : Style.font.family
+        font.pixelSize: Style.font.icon
+        anchors.verticalCenter: parent.verticalCenter
+        horizontalAlignment: Text.AlignHCenter
+      }
+
+      Column {
+        // Row padding plus spacing consumes two gaps either side of the label.
+        width: parent.width - rowRoot.iconWidth - Style.space(24) -
+          (rowRoot.checkable ? rowRoot.switchWidth + Style.space(12) : 0)
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.space(2)
+
+        Text {
+          text: rowRoot.title
+          width: parent.width
+          elide: Text.ElideRight
+          color: Color.popups.text
+          font.family: root.bar ? root.bar.fontFamily : Style.font.family
+          font.pixelSize: Style.font.body
+        }
+
+        Text {
+          text: rowRoot.subtitle
+          width: parent.width
+          elide: Text.ElideRight
+          color: Qt.lighter(Color.muted, 1.25)
+          font.family: root.bar ? root.bar.fontFamily : Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+      }
+
+      Item {
+        width: rowRoot.switchWidth
+        height: Style.space(24)
+        visible: rowRoot.checkable
+        anchors.verticalCenter: parent.verticalCenter
+
+        BorderSurface {
+          anchors.fill: parent
+          radius: height / 2
+          color: rowRoot.checked
+            ? Style.selectedFillFor(Color.popups.text, Color.accent)
+            : Style.normalFillFor(Color.popups.text, Color.accent)
+          borderSpec: Border.controlSpec(
+            rowRoot.checked ? "selected" : "normal",
+            Color.popups.text,
+            Color.accent)
+
+          Rectangle {
+            width: Style.space(16)
+            height: width
+            radius: width / 2
+            anchors.verticalCenter: parent.verticalCenter
+            x: rowRoot.checked ? parent.width - width - Style.space(4) : Style.space(4)
+            color: rowRoot.checked ? Color.accent : Color.muted
+            Behavior on x { NumberAnimation { duration: 120 } }
+          }
+        }
+      }
+    }
+
+    MouseArea {
+      id: rowMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      enabled: !rowRoot.busy
+      cursorShape: Qt.PointingHandCursor
+      onClicked: rowRoot.activated()
+    }
   }
 
   implicitWidth: button.implicitWidth
@@ -133,363 +294,114 @@ BarWidget {
         font.pixelSize: Style.font.bodySmall
       }
 
-      BorderSurface {
-        width: parent.width
-        height: Style.space(56)
-        radius: Style.cornerRadius
-        color: toolMouse.containsMouse
-          ? Style.hoverFillFor(Color.popups.text, Color.accent)
-          : Style.normalFillFor(Color.popups.text, Color.accent)
-        borderSpec: toolMouse.containsMouse
-          ? Border.controlSpec("hover-cursor", Color.popups.text, Color.accent)
-          : Border.controlSpec("normal", Color.popups.text, Color.accent)
-
-        Row {
-          anchors.fill: parent
-          anchors.leftMargin: Style.space(12)
-          anchors.rightMargin: Style.space(12)
-          spacing: Style.space(12)
-
-          Text {
-            text: "󰃢"
-            color: Color.accent
-            font.family: root.bar ? root.bar.fontFamily : Style.font.family
-            font.pixelSize: Style.font.icon
-            anchors.verticalCenter: parent.verticalCenter
-          }
-
-          Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(2)
-
-            Text {
-              text: "Cleaning Mode"
-              color: Color.popups.text
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.body
-            }
-
-            Text {
-              text: "Lock input while wiping your keyboard"
-              color: Qt.lighter(Color.muted, 1.25)
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-
-          }
-        }
-
-        MouseArea {
-          id: toolMouse
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.startCleaning()
-        }
+      ToolRow {
+        icon: "󰃢"
+        title: "Cleaning Mode"
+        subtitle: "Lock input while wiping your keyboard"
+        onActivated: root.startCleaning()
       }
 
-      BorderSurface {
-        width: parent.width
-        height: Style.space(56)
-        radius: Style.cornerRadius
-        color: focusToggle.containsMouse
-          ? Style.hoverFillFor(Color.popups.text, Color.accent)
-          : Style.normalFillFor(Color.popups.text, Color.accent)
-        borderSpec: focusToggle.containsMouse
-          ? Border.controlSpec("hover-cursor", Color.popups.text, Color.accent)
-          : Border.controlSpec("normal", Color.popups.text, Color.accent)
-
-        Row {
-          anchors.fill: parent
-          anchors.leftMargin: Style.space(12)
-          anchors.rightMargin: Style.space(12)
-          spacing: Style.space(12)
-
-          Text {
-            width: Style.space(24)
-            text: "󰍹"
-            color: Color.accent
-            font.family: root.bar ? root.bar.fontFamily : Style.font.family
-            font.pixelSize: Style.font.icon
-            anchors.verticalCenter: parent.verticalCenter
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Column {
-            width: parent.width - Style.space(24) - Style.space(42) - Style.space(24)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(2)
-
-            Text {
-              text: "Focus follows mouse"
-              width: parent.width
-              elide: Text.ElideRight
-              color: Color.popups.text
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.body
-            }
-
-            Text {
-              text: root.focusMouseDisabled ? "Off - windows stay focused" : "On - pointer focuses windows"
-              width: parent.width
-              elide: Text.ElideRight
-              color: Qt.lighter(Color.muted, 1.25)
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-          }
-
-          Item {
-            width: Style.space(42)
-            height: Style.space(24)
-            anchors.verticalCenter: parent.verticalCenter
-
-            BorderSurface {
-              anchors.fill: parent
-              radius: height / 2
-              color: root.focusMouseDisabled
-                ? Style.selectedFillFor(Color.popups.text, Color.accent)
-                : Style.normalFillFor(Color.popups.text, Color.accent)
-              borderSpec: Border.controlSpec(
-                root.focusMouseDisabled ? "selected" : "normal",
-                Color.popups.text,
-                Color.accent)
-
-              Rectangle {
-                width: Style.space(16)
-                height: width
-                radius: width / 2
-                anchors.verticalCenter: parent.verticalCenter
-                x: root.focusMouseDisabled ? parent.width - width - Style.space(4) : Style.space(4)
-                color: root.focusMouseDisabled ? Color.accent : Color.muted
-                Behavior on x { NumberAnimation { duration: 120 } }
-              }
-            }
-          }
-        }
-
-        MouseArea {
-          id: focusToggle
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.toggleFocusMouse()
-        }
+      ToolRow {
+        icon: "󰍹"
+        title: "Focus follows mouse"
+        checkable: true
+        checked: root.focusMouseDisabled
+        busy: root.focusMouseBusy
+        subtitle: root.focusMouseDisabled
+          ? "Off - windows stay focused"
+          : "On - pointer focuses windows"
+        onActivated: root.toggleFocusMouse()
       }
 
-      BorderSurface {
-        width: parent.width
-        height: Style.space(56)
-        radius: Style.cornerRadius
-        color: filterToggle.containsMouse
-          ? Style.hoverFillFor(Color.popups.text, Color.accent)
-          : Style.normalFillFor(Color.popups.text, Color.accent)
-        borderSpec: filterToggle.containsMouse
-          ? Border.controlSpec("hover-cursor", Color.popups.text, Color.accent)
-          : Border.controlSpec("normal", Color.popups.text, Color.accent)
-
-        Row {
-          anchors.fill: parent
-          anchors.leftMargin: Style.space(12)
-          anchors.rightMargin: Style.space(12)
-          spacing: Style.space(12)
-
-          Text {
-            id: filterIcon
-            width: Style.space(24)
-            text: "󰌌"
-            color: Color.accent
-            font.family: root.bar ? root.bar.fontFamily : Style.font.family
-            font.pixelSize: Style.font.icon
-            anchors.verticalCenter: parent.verticalCenter
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Column {
-            id: filterText
-            width: parent.width - filterIcon.width - filterSwitch.width - Style.space(24)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(2)
-
-            Text {
-              text: "Key filter"
-              width: parent.width
-              elide: Text.ElideRight
-              color: Color.popups.text
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.body
-            }
-
-            Text {
-              text: root.keyFilterEnabled ? "On - filters double presses" : "Off - filter is disabled"
-              width: parent.width
-              elide: Text.ElideRight
-              color: Qt.lighter(Color.muted, 1.25)
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-          }
-
-          Item {
-            id: filterSwitch
-            width: Style.space(42)
-            height: Style.space(24)
-            anchors.verticalCenter: parent.verticalCenter
-
-            BorderSurface {
-              anchors.fill: parent
-              radius: height / 2
-              color: root.keyFilterEnabled
-                ? Style.selectedFillFor(Color.popups.text, Color.accent)
-                : Style.normalFillFor(Color.popups.text, Color.accent)
-              borderSpec: Border.controlSpec(
-                root.keyFilterEnabled ? "selected" : "normal",
-                Color.popups.text,
-                Color.accent)
-
-              Rectangle {
-                width: Style.space(16)
-                height: width
-                radius: width / 2
-                anchors.verticalCenter: parent.verticalCenter
-                x: root.keyFilterEnabled ? parent.width - width - Style.space(4) : Style.space(4)
-                color: root.keyFilterEnabled ? Color.accent : Color.muted
-                Behavior on x { NumberAnimation { duration: 120 } }
-              }
-            }
-
-          }
-        }
-
-        MouseArea {
-          id: filterToggle
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.toggleKeyFilter()
-        }
+      ToolRow {
+        icon: "󰌌"
+        title: "Key filter"
+        checkable: true
+        checked: root.keyFilterEnabled
+        busy: root.keyFilterBusy
+        subtitle: !root.keyFilterEnabled
+          ? "Off - filter is disabled"
+          : root.keyFilterHealthy
+            ? "On - filters double presses"
+            : "Enabled, but the service is not running"
+        onActivated: root.toggleKeyFilter()
       }
 
-      BorderSurface {
+      ToolRow {
+        icon: "󰍽"
+        title: "Click filter"
+        checkable: true
+        checked: root.clickFilterEnabled
+        busy: root.clickFilterBusy
+        subtitle: !root.clickFilterEnabled
+          ? "Off - filter is disabled"
+          : root.clickFilterHealthy
+            ? "On - filters rapid extra clicks"
+            : "Enabled, but the service is not running"
+        onActivated: root.toggleClickFilter()
+      }
+
+      Text {
         width: parent.width
-        height: Style.space(56)
-        radius: Style.cornerRadius
-        color: clickToggle.containsMouse
-          ? Style.hoverFillFor(Color.popups.text, Color.accent)
-          : Style.normalFillFor(Color.popups.text, Color.accent)
-        borderSpec: clickToggle.containsMouse
-          ? Border.controlSpec("hover-cursor", Color.popups.text, Color.accent)
-          : Border.controlSpec("normal", Color.popups.text, Color.accent)
-
-        Row {
-          anchors.fill: parent
-          anchors.leftMargin: Style.space(12)
-          anchors.rightMargin: Style.space(12)
-          spacing: Style.space(12)
-
-          Text {
-            width: Style.space(24)
-            text: "󰍽"
-            color: Color.accent
-            font.family: root.bar ? root.bar.fontFamily : Style.font.family
-            font.pixelSize: Style.font.icon
-            anchors.verticalCenter: parent.verticalCenter
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Column {
-            width: parent.width - Style.space(24) - Style.space(42) - Style.space(24)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(2)
-
-            Text {
-              text: "Click filter"
-              width: parent.width
-              elide: Text.ElideRight
-              color: Color.popups.text
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.body
-            }
-
-            Text {
-              text: root.clickFilterEnabled ? "On - filters rapid extra clicks" : "Off - filter is disabled"
-              width: parent.width
-              elide: Text.ElideRight
-              color: Qt.lighter(Color.muted, 1.25)
-              font.family: root.bar ? root.bar.fontFamily : Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-          }
-
-          Item {
-            width: Style.space(42)
-            height: Style.space(24)
-            anchors.verticalCenter: parent.verticalCenter
-
-            BorderSurface {
-              anchors.fill: parent
-              radius: height / 2
-              color: root.clickFilterEnabled
-                ? Style.selectedFillFor(Color.popups.text, Color.accent)
-                : Style.normalFillFor(Color.popups.text, Color.accent)
-              borderSpec: Border.controlSpec(
-                root.clickFilterEnabled ? "selected" : "normal",
-                Color.popups.text,
-                Color.accent)
-
-              Rectangle {
-                width: Style.space(16)
-                height: width
-                radius: width / 2
-                anchors.verticalCenter: parent.verticalCenter
-                x: root.clickFilterEnabled ? parent.width - width - Style.space(4) : Style.space(4)
-                color: root.clickFilterEnabled ? Color.accent : Color.muted
-                Behavior on x { NumberAnimation { duration: 120 } }
-              }
-            }
-          }
-        }
-
-        MouseArea {
-          id: clickToggle
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.toggleClickFilter()
-        }
+        visible: root.statusMessage !== ""
+        text: root.statusMessage
+        wrapMode: Text.WordWrap
+        color: Color.accent
+        font.family: root.bar ? root.bar.fontFamily : Style.font.family
+        font.pixelSize: Style.font.caption
       }
     }
   }
 
   Process {
     id: keyFilterAction
-    onExited: if (exitCode === 0) root.refreshFilterStates()
+    stderr: StdioCollector { id: keyFilterActionErr }
+    onExited: function(exitCode) {
+      root.keyFilterBusy = false
+      if (exitCode !== 0) root.reportFailure("Key filter", exitCode, keyFilterActionErr.text)
+      root.refreshFilterStates()
+    }
   }
 
   Process {
     id: clickFilterAction
-    onExited: if (exitCode === 0) root.refreshFilterStates()
+    stderr: StdioCollector { id: clickFilterActionErr }
+    onExited: function(exitCode) {
+      root.clickFilterBusy = false
+      if (exitCode !== 0) root.reportFailure("Click filter", exitCode, clickFilterActionErr.text)
+      root.refreshFilterStates()
+    }
   }
 
   Process {
     id: focusMouseAction
-    onExited: {
+    stderr: StdioCollector { id: focusMouseActionErr }
+    onExited: function(exitCode) {
       root.focusMouseBusy = false
-      if (exitCode === 0) root.refreshFilterStates()
+      if (exitCode !== 0) root.reportFailure("Focus follows mouse", exitCode, focusMouseActionErr.text)
+      root.refreshFilterStates()
     }
   }
 
   Process {
     id: keyFilterState
     stdout: StdioCollector {
-      onStreamFinished: root.keyFilterEnabled = text.trim() === "enabled"
+      onStreamFinished: {
+        const status = root.parseUnitStatus(text)
+        root.keyFilterEnabled = status.UnitFileState === "enabled"
+        root.keyFilterHealthy = status.ActiveState === "active"
+      }
     }
   }
 
   Process {
     id: clickFilterState
     stdout: StdioCollector {
-      onStreamFinished: root.clickFilterEnabled = text.trim() === "enabled"
+      onStreamFinished: {
+        const status = root.parseUnitStatus(text)
+        root.clickFilterEnabled = status.UnitFileState === "enabled"
+        root.clickFilterHealthy = status.ActiveState === "active"
+      }
     }
   }
 
@@ -508,6 +420,7 @@ BarWidget {
     escapeCount: root.escapeCount
     hostScreen: button.QsWindow.window ? button.QsWindow.window.screen : null
     fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+    layerNamespace: root.moduleName.replace(/\./g, "-") + "-cleaning"
     onEscapePressed: {
       root.escapeCount += 1
       if (root.escapeCount >= 5) root.stopCleaning()
