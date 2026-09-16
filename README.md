@@ -27,7 +27,7 @@ Omatoys keeps small, focused tools one click away from the Omarchy top bar:
 The Color Picker makes it easy to sample a color from anywhere on screen.
 Click a point, then copy the HEX, RGB, or HSL value you need.
 
-<img src="docs/color-picker.png" alt="Color Picker showing copyable color values" width="100%">
+<img src="docs/color-picker.png" alt="Color Picker showing copyable color values">
 
 Key Filter and Click Filter can be enabled independently. Enabling a filter
 starts its systemd service immediately and enables it for future boots;
